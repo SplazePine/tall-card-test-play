@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="icon" href="data:,">
 <title>Tall Tap - a Splazetown game you can play inside an X post</title>
 
@@ -32,6 +32,18 @@
   main{max-width:520px;margin:0 auto;padding:24px 16px;text-align:center}
   h1{color:#f2a444}
   .frame{width:100%;max-width:360px;aspect-ratio:9/16;border:0;border-radius:12px;background:#000}
+  /* Phones (X's in-app browser opens this page): ONLY the game, filling the whole screen. Pure CSS, works without JS.
+     Wide desktop windows keep the layout above. Safe-area insets keep the game out from under the notch. */
+  @media (max-width: 700px), (orientation: portrait), (pointer: coarse) and (max-height: 600px) {
+    html,body{height:100%;overflow:hidden;background:#000;overscroll-behavior:none}
+    main{max-width:none;margin:0;padding:0}
+    main > h1, main > p{display:none}
+    .frame{position:fixed;top:env(safe-area-inset-top,0px);left:env(safe-area-inset-left,0px);
+           width:calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));
+           height:calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+           height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+           max-width:none;aspect-ratio:auto;border:0;border-radius:0;margin:0}
+  }
 </style>
 </head>
 <body>
