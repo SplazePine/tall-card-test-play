@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Tall Tap - a Splazetown game you can play inside an X post</title>
+
+<!-- ===== X (Twitter) PLAYER CARD =====
+     X reads these tags when someone posts a link to THIS page (post this page, never game.html).
+     All links point to the live address https://splazepine.github.io/tall-card-test-play/
+     They must be full https:// links, because X does not run JavaScript.
+     publish.py also bumps the version number on EVERY link at once (X and browsers cache). -->
+<meta name="twitter:card" content="player">
+<meta name="twitter:title" content="Tall Tap">
+<meta name="twitter:description" content="Tap the star as fast as you can! A tall Splazetown game. Play it right here in the post.">
+<meta name="twitter:image" content="https://splazepine.github.io/tall-card-test-play/card.png?v=1">
+<meta name="twitter:image:alt" content="Pixel art title screen of Tall Tap">
+<meta name="twitter:player" content="https://splazepine.github.io/tall-card-test-play/game.html?v=1">
+<meta name="twitter:player:width" content="720">
+<meta name="twitter:player:height" content="1280">
+
+<!-- Open Graph tags: other apps (Discord, iMessage, etc.) read these -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Tall Tap">
+<meta property="og:description" content="Tap the star as fast as you can! A tall Splazetown game.">
+<meta property="og:image" content="https://splazepine.github.io/tall-card-test-play/card.png?v=1">
+<meta property="og:url" content="https://splazepine.github.io/tall-card-test-play/?v=1">
+
+<style>
+  html,body{margin:0;height:100%;background:#120a14;color:#f3e4cc;font:16px system-ui,sans-serif}
+  main{max-width:520px;margin:0 auto;padding:24px 16px;text-align:center}
+  h1{color:#f2a444}
+  .frame{width:100%;max-width:360px;aspect-ratio:9/16;border:0;border-radius:12px;background:#000}
+</style>
+</head>
+<body>
+<main>
+  <h1>Tall Tap</h1>
+  <p>Tap the star as fast as you can! A tall Splazetown game.</p>
+  <!-- People who open the link in a normal browser still get to play. -->
+  <iframe class="frame" src="game.html?v=1" title="Tall Tap game"
+          sandbox="allow-popups allow-same-origin allow-scripts allow-presentation"></iframe>
+  <p><a href="game.html?v=1" target="_blank" rel="noopener" style="color:#a8d0dc">Open full screen ↗</a></p>
+</main>
+</body>
+</html>

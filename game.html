@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Tall Tap (player)</title>
+<link rel="icon" href="data:,">
+<!-- This page is what X loads inside the post. Keep it out of Google: -->
+<meta name="robots" content="noindex">
+<style>
+  /* touch-action:none + overflow:hidden only affect OUR page inside the frame: no pinch-zoom, no rubber-band, no scroll */
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#120a14;
+            touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  canvas{display:block;width:100%;height:100%;outline:none;image-rendering:pixelated}
+  #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+           background:#120a14;color:#f2a444;font:bold 18px monospace;z-index:9;text-align:center}
+  #loading .dot{width:12px;height:12px;margin-top:12px;background:#f2a444;animation:b .5s infinite alternate}
+  @keyframes b{to{transform:translateY(-12px)}}
+  #loading.off{display:none}
+  /* corner buttons: top corners (X can cover the bottom 30% on phones), at least 44x44 px */
+  .ctl{position:fixed;top:2px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+       border:0;border-radius:10px;background:rgba(18,10,20,.55);color:#fff;font:20px system-ui,sans-serif;
+       text-decoration:none;cursor:pointer;padding:0;z-index:5;-webkit-tap-highlight-color:transparent}
+  #mute{right:2px}
+  #open{left:2px;display:none}
+  html.framed #open{display:flex}
+  html.card #open,html.card #mute{display:none}
+</style>
+</head>
+<body>
+<div id="loading">Tall Tap<div class="dot"></div></div>
+<canvas id="c" tabindex="0" aria-label="Tall Tap. Tap the star."></canvas>
+<button id="mute" class="ctl" data-control aria-label="Sound" aria-pressed="false">🔊</button>
+<a id="open" class="ctl" data-control href="game.html?v=1" aria-label="Open the game in a new tab">↗</a>
+<script>
+"use strict";
+const ST = self.ST = { cfg: {"slug":"tall-card-test","title":"Tall Tap","v":1,"music":false,"addons":[],"render3d":{"dpr_cap":1.25,"floor":0.55}}, TEST_BUILD: false, Q: new URLSearchParams(location.search), sw: {}, switched: false };
+ST.FONT = {"A":".###./#...#/#...#/#####/#...#/#...#/#...#","B":"####./#...#/#...#/####./#...#/#...#/####.","C":".###./#...#/#..../#..../#..../#...#/.###.","D":"####./#...#/#...#/#...#/#...#/#...#/####.","E":"#####/#..../#..../####./#..../#..../#####","F":"#####/#..../#..../####./#..../#..../#....","G":".###./#...#/#..../#.###/#...#/#...#/.####","H":"#...#/#...#/#...#/#####/#...#/#...#/#...#","I":"###/.#./.#./.#./.#./.#./###","J":"..###/...#./...#./...#./#..#./#..#./.##..","K":"#...#/#..#./#.#../##.../#.#../#..#./#...#","L":"#..../#..../#..../#..../#..../#..../#####","M":"#...#/##.##/#.#.#/#.#.#/#...#/#...#/#...#","N":"#...#/##..#/#.#.#/#..##/#...#/#...#/#...#","O":".###./#...#/#...#/#...#/#...#/#...#/.###.","P":"####./#...#/#...#/####./#..../#..../#....","Q":".###./#...#/#...#/#...#/#.#.#/#..#./.##.#","R":"####./#...#/#...#/####./#.#../#..#./#...#","S":".####/#..../#..../.###./....#/....#/####.","T":"#####/..#../..#../..#../..#../..#../..#..","U":"#...#/#...#/#...#/#...#/#...#/#...#/.###.","V":"#...#/#...#/#...#/#...#/#...#/.#.#./..#..","W":"#...#/#...#/#...#/#.#.#/#.#.#/#.#.#/.#.#.","X":"#...#/#...#/.#.#./..#../.#.#./#...#/#...#","Y":"#...#/#...#/.#.#./..#../..#../..#../..#..","Z":"#####/....#/...#./..#../.#.../#..../#####","0":".###./#...#/#..##/#.#.#/##..#/#...#/.###.","1":".#./##./.#./.#./.#./.#./###","2":".###./#...#/....#/...#./..#../.#.../#####","3":"####./....#/....#/.###./....#/....#/####.","4":"...#./..##./.#.#./#..#./#####/...#./...#.","5":"#####/#..../####./....#/....#/#...#/.###.","6":".###./#..../#..../####./#...#/#...#/.###.","7":"#####/....#/...#./..#../.#.../.#.../.#...","8":".###./#...#/#...#/.###./#...#/#...#/.###.","9":".###./#...#/#...#/.####/....#/....#/.###.",".":"./././././.#",",":"../../../../../.#/#.","!":"#/#/#/#/#/./#","?":".###./#...#/....#/...#./..#../...../..#..",":":"./././#/./#/.","-":".../.../.../###/.../.../...","+":"...../..#../..#../#####/..#../..#../.....","/":"....#/...#./...#./..#../.#.../.#.../#....","%":"##..#/##..#/...#./..#../.#.../#..##/#..##","'":"#/#/./././././","&":".##../#..#./#.#../.#.../#.#.#/#..#./.##.#","(":".#/#./#./#./#./#./.#",")":"#./.#/.#/.#/.#/.#/#.",">":"#.../.#../..#./...#/..#./.#../#...","<":"...#/..#./.#../#.../.#../..#./...#","=":"..../..../####/..../####/..../....","x":"...../...../#...#/.#.#./..#../.#.#./#...#"};
+ST.SAFE = 0.7;                                   // X can cover the bottom 30% on phones: no text or buttons down there
+ST.root = document.documentElement;
+ST.canvas = document.getElementById("c");
+ST.ctx = ST.canvas.getContext("2d", { alpha: false });
+ST.framed = true;
+try { ST.framed = window.self !== window.top; } catch (e) {}
+ST.root.classList.toggle("framed", ST.framed);
+document.addEventListener("click", e => {        // links ALWAYS open a new tab (never replace the game inside X)
+const a = e.target.closest && e.target.closest("a[href]");
+if (!a) return; e.preventDefault(); window.open(a.href, "_blank", "noopener");
+}, true);
+ST.mk = (w, h) => { const c = document.createElement("canvas"); c.width = Math.max(1, w); c.height = Math.max(1, h); return c; };
+ST.DPR = () => Math.min(window.devicePixelRatio || 1, 3);
+ST.cw = 0; ST.ch = 0; ST.L = 0; ST.small = false; ST.fs = 1; ST.BW = 160; ST.BH = 160; ST.sc = 1;
+ST.buf = null; ST.g = null;
+ST.resize = () => {
+if (!innerWidth || !innerHeight) return;       // frames can be 0x0 for a moment; the loop tries again next frame
+const S = ST; S.cw = innerWidth; S.ch = innerHeight;
+S.canvas.width = Math.round(S.cw * S.DPR()); S.canvas.height = Math.round(S.ch * S.DPR());
+S.small = S.ch <= 300 || S.cw <= 360;
+S.root.classList.toggle("card-small", S.small);
+S.L = Math.floor(S.ch * S.SAFE);
+S.fs = S.cw >= 420 ? 2 : S.cw >= 300 ? 1.5 : 1;
+S.BW = 160; S.BH = Math.max(90, Math.min(220, Math.round(160 * S.ch / S.cw))); S.sc = S.cw / S.BW;
+if (!S.buf || S.buf.width !== S.BW || S.buf.height !== S.BH) { S.buf = S.mk(S.BW, S.BH); S.g = S.buf.getContext("2d"); }
+S.SY = Math.floor(S.BH * S.SAFE);              // the safe line in buffer pixels
+if (S.onResize) S.onResize();
+};
+ST.R = (x, y, w, h, c) => { const g = ST.g; g.fillStyle = c; g.fillRect(x | 0, y | 0, Math.max(0, w | 0), Math.max(0, h | 0)); };
+ST.px = (x, y, c) => ST.R(x, y, 1, 1, c);
+ST.ell = (cx, cy, rx, ry, c) => { for (let y = -ry; y <= ry; y++) { const w = Math.round(rx * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry || 1)))); ST.R(cx - w, cy + y, 2 * w + 1, 1, c); } };
+ST.dots = (x, y, w, h, c, step = 2, off = 0) => { for (let j = 0; j < h; j++) for (let i = (j + off) % step; i < w; i += step) ST.px(x + i, y + j, c); };
+ST.spr = (rows, x, y, pal, s = 1) => {             // rows = ["..ab..", ...], pal = { a: "#fff" }
+for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) { const k = rows[j][i]; if (k !== "." && pal[k]) ST.R(x + i * s, y + j * s, s, s, pal[k]); }
+};
+ST.present = () => {                              // buffer -> screen, crisp
+const c = ST.ctx; c.imageSmoothingEnabled = false; c.drawImage(ST.buf, 0, 0, ST.cw, ST.ch);
+};
+ST.toBuf = (x, y) => ({ x: x / ST.sc, y: y * ST.BH / ST.ch });
+ST.uiBottom = 0; ST.trackUI = true;
+ST.uiTexts = []; ST.hud = []; ST.hudMode = false;
+ST.hudRect = (x, y, w, h) => { if (ST.hudMode) ST.hud.push({ x, y, w, h }); };
+const gwid = c => { const f = ST.FONT[c]; return f ? f.split("/")[0].length : 3; };
+ST.tw = (s, fs) => { let w = 0; for (const c of String(s).toUpperCase()) w += c === " " ? 4 : gwid(c) + 1; return Math.max(0, w - 1) * fs; };
+ST.wrap = (s, maxW, fs) => {
+const words = String(s).toUpperCase().split(/\s+/).filter(Boolean), out = []; let cur = "";
+for (const w of words) { const t = cur ? cur + " " + w : w; if (ST.tw(t, fs) <= maxW || !cur) cur = t; else { out.push(cur); cur = w; } }
+if (cur) out.push(cur); return out;
+};
+ST.text = (s, x, y, color, fs = ST.fs, align = "l", shadow = "#000") => {
+s = String(s).toUpperCase(); const W = ST.tw(s, fs), c = ST.ctx;
+if (align === "c") x -= W / 2; else if (align === "r") x -= W;
+for (const [col, o] of shadow ? [[shadow, Math.max(1, Math.round(fs / 1.5))], [color, 0]] : [[color, 0]]) {
+c.fillStyle = col; c.beginPath(); let cx = x + o;
+for (const ch of s) {
+if (ch === " ") { cx += 4 * fs; continue; }
+const f = ST.FONT[ch]; if (!f) { cx += 4 * fs; continue; }
+const rows = f.split("/");
+for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) if (rows[j][i] === "#") c.rect(cx + i * fs, y + o + j * fs, fs, fs);
+cx += (rows[0].length + 1) * fs;
+}
+c.fill();
+}
+if (ST.trackUI) { ST.uiBottom = Math.max(ST.uiBottom, y + 7 * fs + 2); ST.uiTexts.push({ s, x, y, w: W, h: 7 * fs }); }
+ST.hudRect(x, y, W, 7 * fs);
+return W;
+};
+ST.btns = [];
+ST.theme = { fill: "#2a1830", edge: "#f2a444", on: "#f2a444", text: "#f3e4cc", dark: "#0a0610" };
+ST.box = (x, y, w, h, fill, edge) => {
+const c = ST.ctx; c.fillStyle = ST.theme.dark; c.fillRect(x - 1, y - 1, w + 2, h + 2);
+c.fillStyle = edge; c.fillRect(x, y, w, h); c.fillStyle = fill; c.fillRect(x + 2, y + 2, w - 4, h - 4);
+if (ST.trackUI) ST.uiBottom = Math.max(ST.uiBottom, y + h + 1);
+ST.hudRect(x - 1, y - 1, w + 2, h + 2);
+};
+ST.button = (id, x, y, w, h, label, o = {}) => {
+w = Math.max(44, w); h = Math.max(44, h);
+ST.btns.push({ id, x, y, w, h, label: String(label) });
+ST.box(x, y, w, h, o.on ? ST.theme.on : ST.theme.fill, o.edge || ST.theme.edge);
+let fs = o.fs || ST.fs; while (fs > 1 && ST.tw(label, fs) > w - 8) fs -= 0.5;
+ST.text(label, x + w / 2, y + (h - 7 * fs) / 2, o.on ? ST.theme.dark : ST.theme.text, fs, "c", o.on ? null : "#000");
+return { x, y, w, h };
+};
+ST.hitBtn = (x, y) => { for (let i = ST.btns.length - 1; i >= 0; i--) { const q = ST.btns[i]; if (x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h) return q; } return null; };
+ST.seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
+ST.rand = () => { ST.seed = (ST.seed * 1664525 + 1013904223) >>> 0; return ST.seed / 4294967296; };
+ST.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+ST.store = (() => {
+let ok = false; const mem = {};
+try { const k = "__st_probe"; localStorage.setItem(k, "1"); ok = localStorage.getItem(k) === "1"; localStorage.removeItem(k); } catch (e) { ok = false; }
+return {
+get ok() { return ok; },
+get(key, def) {
+let raw = null;
+if (ok) { try { raw = localStorage.getItem(key); } catch (e) { ok = false; } }
+if (raw == null) raw = mem[key] == null ? null : mem[key];
+if (raw == null) return def;
+try { return JSON.parse(raw); } catch (e) { return def; }
+},
+set(key, val) {
+if (ST.switched) return false;
+const raw = JSON.stringify(val); mem[key] = raw;
+if (ok) { try { localStorage.setItem(key, raw); return true; } catch (e) { ok = false; } }
+return false;
+},
+};
+})();
+ST.save = {
+key: () => ST.cfg.slug + "-v1", data: {},
+load(defaults) { const o = ST.store.get(this.key(), null); this.data = Object.assign({}, defaults, o && typeof o === "object" ? o : {}); return this.data; },
+write() { return ST.store.set(this.key(), this.data); },
+};
+ST.sound = { on: false, muted: false, music: null, ac: null, master: null, SFX: {} };
+ST.sound.muted = ST.store.get(ST.cfg.slug + "-muted", false) === true;
+ST.muteBtn = document.getElementById("mute");
+ST.showMute = () => { const b = ST.muteBtn, m = ST.sound.muted; if (!b) return; b.textContent = m ? "🔇" : "🔊"; b.setAttribute("aria-pressed", String(m)); b.setAttribute("aria-label", m ? "Turn sound on" : "Turn sound off"); };
+ST.showMute();
+ST.startSound = () => {                            // runs INSIDE a tap (pointerup / touchend / click / key)
+const S = ST.sound;
+if (ST.sw.card) return;
+if (S.on) { if (S.music && S.music.paused && !document.hidden && ST.scene !== "paused") S.music.play().catch(() => {}); return; }
+S.on = true;
+try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+if (ST.cfg.music) {
+S.music = new Audio("music.wav?v=" + ST.cfg.v); S.music.loop = true; S.music.volume = 0.35; S.music.muted = S.muted; S.music.setAttribute("playsinline", "");
+S.music.play().catch(() => {});
+}
+try { S.ac = new (window.AudioContext || window.webkitAudioContext)(); S.master = S.ac.createGain(); S.master.gain.value = S.muted ? 0 : 0.5; S.master.connect(S.ac.destination); S.ac.resume(); } catch (e) { S.ac = null; }
+};
+ST.setMuted = m => {
+const S = ST.sound; S.muted = m; ST.store.set(ST.cfg.slug + "-muted", m);
+if (S.music) S.music.muted = m; if (S.master) S.master.gain.value = m ? 0 : 0.5; ST.showMute();
+};
+ST.tone = (f1, f2, len, type = "square", vol = 0.05, delay = 0) => {
+const S = ST.sound; if (!S.ac || S.muted || document.hidden) return;
+try {
+const t = S.ac.currentTime + delay, o = S.ac.createOscillator(), gn = S.ac.createGain();
+o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + len);
+gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.001, t + len);
+o.connect(gn); gn.connect(S.master); o.start(t); o.stop(t + len + 0.02);
+} catch (e) {}
+};
+ST.sfx = name => { const f = ST.sound.SFX[name]; if (f) f(ST.tone); };
+for (const type of ["pointerup", "touchend", "click", "keydown"])
+addEventListener(type, e => { if (e.target !== ST.muteBtn) ST.startSound(); }, { capture: true, passive: true });
+if (ST.muteBtn) ST.muteBtn.addEventListener("click", () => { if (!ST.sound.on) { ST.setMuted(false); ST.startSound(); } else ST.setMuted(!ST.sound.muted); });
+document.addEventListener("visibilitychange", () => {
+const m = ST.sound.music; if (!m) return;
+if (document.hidden) m.pause(); else if (ST.scene !== "paused") m.play().catch(() => {});
+});
+ST.keys = new Set();
+ST.drag = { on: false, id: -1, ox: 0, oy: 0, x: 0, y: 0 };
+ST.JOY_R = 28;                                    // joystick radius in CSS px
+ST.pad = { ok: true, connected: false, errors: 0, x: 0, y: 0, held: {} };
+ST.inputStats = { clears: 0, last: "" };
+let downP = null;
+ST.clearInput = why => {
+ST.keys.clear(); downP = null;
+if (ST.drag.on) { try { ST.canvas.releasePointerCapture(ST.drag.id); } catch (e) {} }
+ST.drag.on = false; ST.drag.id = -1;
+ST.pad.held = { a: true, start: true };         // a button already down must be released before it counts again
+ST.inputStats.clears++; ST.inputStats.last = why || "";
+};
+ST.canvas.addEventListener("pointerdown", e => {
+e.preventDefault(); ST.canvas.focus({ preventScroll: true });
+downP = { x: e.clientX, y: e.clientY, id: e.pointerId, t: performance.now(), moved: false, onBtn: !!ST.hitBtn(e.clientX, e.clientY) };
+if (ST.scene === "play" && !downP.onBtn && (e.pointerType !== "mouse" || e.button === 0)) {
+try { ST.canvas.setPointerCapture(e.pointerId); } catch (er) {}
+Object.assign(ST.drag, { on: true, id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY });
+}
+});
+ST.canvas.addEventListener("pointermove", e => {
+if (downP && e.pointerId === downP.id && Math.hypot(e.clientX - downP.x, e.clientY - downP.y) > 12) downP.moved = true;
+if (ST.drag.on && e.pointerId === ST.drag.id) { ST.drag.x = e.clientX; ST.drag.y = e.clientY; }
+});
+function pointerEnd(e) {
+if (e.pointerId === ST.drag.id) { ST.drag.on = false; ST.drag.id = -1; }
+const d = downP; if (!d || d.id !== e.pointerId) return; downP = null;
+if (d.moved || performance.now() - d.t > 600) return;
+ST.tapAt(e.clientX, e.clientY);
+}
+ST.canvas.addEventListener("pointerup", pointerEnd);
+ST.canvas.addEventListener("pointercancel", () => ST.clearInput("pointercancel"));        // the browser/app took the touch
+ST.canvas.addEventListener("lostpointercapture", e => { if (ST.drag.on && e.pointerId === ST.drag.id) ST.clearInput("lostpointercapture"); });
+ST.canvas.addEventListener("contextmenu", e => { e.preventDefault(); ST.clearInput("contextmenu"); });
+addEventListener("blur", () => ST.clearInput("blur"));
+addEventListener("pagehide", () => ST.clearInput("pagehide"));
+document.addEventListener("visibilitychange", () => { if (document.hidden) ST.clearInput("hidden"); });
+ST.readPad = () => {
+const P = ST.pad; P.x = 0; P.y = 0; P.connected = false;
+if (!P.ok) return;
+let list = null;
+try {
+if (typeof navigator.getGamepads !== "function") { P.ok = false; return; }
+list = navigator.getGamepads();
+} catch (e) { if (++P.errors >= 3) P.ok = false; return; }
+try {
+for (const g of list || []) {
+if (!g || g.connected === false) continue;
+P.connected = true;
+const ax = g.axes || [], bt = g.buttons || [], on = i => !!(bt[i] && (bt[i].pressed || bt[i].value > 0.5));
+let x = +ax[0] || 0, y = +ax[1] || 0; if (Math.hypot(x, y) < 0.25) { x = 0; y = 0; }
+if (on(14)) x = -1; if (on(15)) x = 1; if (on(12)) y = -1; if (on(13)) y = 1;
+P.x = x; P.y = y;
+for (const [k, i, code] of [["a", 0, "Enter"], ["start", 9, "KeyP"]]) {
+const down = on(i); if (down && !P.held[k] && !document.hidden) ST.onKey(code); P.held[k] = down;
+}
+break;
+}
+} catch (e) { if (++P.errors >= 3) P.ok = false; }
+};
+ST.dir = () => {                                   // {x, y} in -1..1 from keys, the drag joystick or a gamepad
+const k = ST.keys; let x = 0, y = 0;
+if (k.has("ArrowLeft") || k.has("KeyA")) x -= 1; if (k.has("ArrowRight") || k.has("KeyD")) x += 1;
+if (k.has("ArrowUp") || k.has("KeyW")) y -= 1; if (k.has("ArrowDown") || k.has("KeyS")) y += 1;
+if (!x && !y) { x = ST.pad.x; y = ST.pad.y; }
+if (ST.drag.on) {
+const vx = ST.drag.x - ST.drag.ox, vy = ST.drag.y - ST.drag.oy, l = Math.hypot(vx, vy);
+if (l > 6) { const m = Math.min(1, l / ST.JOY_R); x = vx / l * m; y = vy / l * m; }
+}
+const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+return { x, y };
+};
+ST.drawJoy = () => {                               // the joystick ring, kept above the 70% line
+if (!ST.drag.on) return; const c = ST.ctx, jx = ST.clamp(ST.drag.ox, 30, ST.cw - 30), jy = Math.min(ST.drag.oy, ST.L - 30);
+const d = ST.dir(); c.strokeStyle = "rgba(243,228,204,.45)"; c.lineWidth = 2; c.beginPath(); c.arc(jx, jy, ST.JOY_R, 0, 7); c.stroke();
+c.fillStyle = "rgba(243,228,204,.5)"; c.beginPath(); c.arc(jx + d.x * ST.JOY_R, jy + d.y * ST.JOY_R, 9, 0, 7); c.fill();
+};
+addEventListener("keydown", e => {
+if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+if (e.repeat) return;
+ST.keys.add(e.code);
+ST.onKey(e.code);
+});
+addEventListener("keyup", e => ST.keys.delete(e.code));
+ST.scene = "title"; ST.sceneT = 0; ST.seq = 0;
+ST.go = s => {
+ST.scene = s; ST.sceneT = 0; ST.seq++; ST.drag.on = false; ST.keys.clear();
+const m = ST.sound.music; if (m) { if (s === "paused") m.pause(); else if (!document.hidden) m.play().catch(() => {}); }
+};
+ST.start = () => { ST.save.data.plays = (ST.save.data.plays || 0) + 1; ST.save.write(); if (ST.sw.seed) ST.seed = ST.sw.seed >>> 0; ST.G.start(); ST.startSeed = ST.seed; ST.go("play"); ST.sfx("start"); };
+ST.end = () => { ST.overInfo = ST.G.over(); ST.go("over"); ST.sfx(ST.overInfo.win ? "win" : "lose"); };
+ST.press = id => {
+if (id === "play" || id === "again") ST.start();
+else if (id === "pause") { ST.go("paused"); ST.sfx("tap"); }
+else if (id === "resume") { ST.go("play"); ST.sfx("tap"); }
+else if (id === "menu") { ST.go("title"); ST.sfx("tap"); }
+else if (ST.G.button) ST.G.button(id);
+};
+ST.tapAt = (x, y) => {
+if (ST.scene === "over" && ST.sceneT < 0.4) return;        // no accidental "again" from the last frantic tap
+const b = ST.hitBtn(x, y);
+if (b) { ST.seq++; ST.press(b.id); return; }
+if (ST.scene === "play" && ST.G.tap && ST.G.tap(x, y)) ST.seq++;
+};
+ST.onKey = code => {
+const ok = code === "Enter" || code === "Space";
+if (ST.sw.tour && code === "F8" && ST.scene === "play") { ST.seq++; ST.end(); return; }   // robot screen tour only
+if (ST.scene === "title" && ok && !ST.sw.card) { ST.seq++; ST.start(); }
+else if (ST.scene === "play" && (code === "KeyP" || code === "Escape")) { ST.seq++; ST.press("pause"); }
+else if (ST.scene === "paused" && (ok || code === "KeyP" || code === "Escape")) { ST.seq++; ST.press("resume"); }
+else if (ST.scene === "over" && ok && ST.sceneT > 0.6) { ST.seq++; ST.press("again"); }
+else if (ST.G.key) { if (ST.G.key(code)) ST.seq++; }
+};
+ST.row = (list, y) => {
+const gap = 8, h = ST.small ? 46 : 52, w = Math.min(ST.small ? 130 : 170, (ST.cw - 16 - gap * (list.length - 1)) / list.length);
+let x = (ST.cw - (w * list.length + gap * (list.length - 1))) / 2;
+for (const b of list) { ST.button(b.id, x, y, w, h, b.label, { on: b.on }); x += w + gap; }
+return y + h;
+};
+ST.lines = (lines, y, color, fs) => {
+for (const l of lines) for (const ln of ST.wrap(l, ST.cw - 24, fs)) { ST.text(ln, ST.cw / 2, y, color, fs, "c"); y += 7 * fs + Math.max(3, fs * 2); }
+return y;
+};
+ST.veil = a => { ST.ctx.fillStyle = `rgba(10,6,16,${a})`; ST.ctx.fillRect(0, 0, ST.cw, ST.ch); };
+ST.drawTitle = () => {
+const T = ST.G.title, big = ST.fs * 1.5;
+let y = ST.small ? 50 : 60;
+ST.text(T.name, ST.cw / 2, y, ST.theme.on, big, "c"); y += 7 * big + (ST.small ? 6 : 12);
+y = ST.lines(T.lines || [], y, ST.theme.text, ST.small ? 1 : ST.fs * 0.75) + (ST.small ? 4 : 10);
+if (ST.sw.card) { ST.text(T.cardLine || "PLAY IT RIGHT HERE IN THE POST", ST.cw / 2, y + 8, ST.theme.text, ST.fs, "c"); return; }
+y = ST.row([{ id: "play", label: "PLAY" }, ...(T.extra || []).map(b => ({ id: b.id, label: b.label(), on: b.on && b.on() }))], y);
+if (T.footer) { const f = T.footer(); if (f) ST.text(f, ST.cw / 2, y + 8, ST.theme.text, ST.small ? 1 : ST.fs * 0.75, "c"); }
+};
+ST.drawPauseBtn = () => ST.button("pause", ST.cw - 96, 2, 44, 44, "II");
+ST.drawPaused = () => {
+ST.veil(0.72);
+const y = ST.small ? 56 : 90;
+ST.text("PAUSED", ST.cw / 2, y, ST.theme.on, ST.fs * 1.5, "c");
+ST.row([{ id: "resume", label: "RESUME" }, { id: "menu", label: "MENU" }], y + 7 * ST.fs * 1.5 + 14);
+};
+ST.drawOver = () => {
+const o = ST.overInfo || { title: "GAME OVER", lines: [] }, big = ST.fs * 1.5;
+ST.veil(o.win ? 0.4 : 0.55);
+let y = ST.small ? 50 : 70;
+ST.text(o.title, ST.cw / 2, y, o.win ? ST.theme.on : "#e0525e", big, "c"); y += 7 * big + 10;
+y = ST.lines(o.lines || [], y, ST.theme.text, ST.small ? 1 : ST.fs * 0.75) + 6;
+ST.row([{ id: "again", label: "AGAIN" }, { id: "menu", label: "MENU" }], y);
+};
+ST.ticks = 0; ST.time = 0;
+ST.hidden = false;
+document.addEventListener("visibilitychange", () => {
+ST.hidden = document.hidden;
+if (ST.hidden && ST.scene === "play") ST.go("paused");   // scrolled away = auto-pause (input.js already cleared held input)
+});
+ST.update = dt => {
+ST.ticks++; ST.time += dt; ST.sceneT += dt;
+if (ST.G.tick) ST.G.tick(dt);                    // always (animations, title backdrop)
+if (ST.scene === "play") ST.G.update(dt);         // only while playing
+};
+ST.draw = () => {
+if (!ST.g || !ST.cw) return;                     // frames can start at 0x0: nothing to draw yet
+const c = ST.ctx, d = ST.DPR();
+c.setTransform(d, 0, 0, d, 0, 0);
+ST.btns = []; ST.uiTexts = []; ST.hud = []; ST.uiBottom = 0; ST.trackUI = true; ST.hudMode = false;
+ST.G.draw(ST.time);                               // the game paints its world into ST.g (and may draw on ST.ctx after present)
+if (!ST.G.presents) ST.present();
+if (ST.G.overlay) ST.G.overlay();                 // optional: draw on the main canvas over the world (e.g. a 3D view)
+if (ST.scene === "title") ST.drawTitle();
+else if (ST.scene === "play") { ST.hudMode = true; if (ST.G.hud) ST.G.hud(); ST.drawPauseBtn(); ST.hudMode = false; ST.drawJoy(); }
+else if (ST.scene === "paused") { if (ST.G.hud) ST.G.hud(); ST.drawPaused(); }
+else if (ST.scene === "over") ST.drawOver();
+if (ST.G.top) { ST.trackUI = false; ST.G.top(); ST.trackUI = true; }   // optional: decoration on top of everything (keep it in the bottom 30%)
+};
+let last = performance.now(), acc = 0;
+ST.now = last; ST.frameNo = 0;
+ST.frame = now => {
+ST.now = now; ST.frameNo++;
+ST.readPad();                                   // never throws (see input.js)
+if (ST.cw !== innerWidth || ST.ch !== innerHeight || ST.canvas.width !== Math.round(innerWidth * ST.DPR())) ST.resize();
+const dtm = now - last; last = now;
+if (!document.hidden) { acc += Math.min(dtm, 100); let n = 0; while (acc >= 1000 / 60 && n++ < 5) { ST.update(1 / 60); acc -= 1000 / 60; } if (n >= 5) acc = 0; } else acc = 0;
+if (ST.cw) ST.draw();
+requestAnimationFrame(ST.frame);
+};
+function uiReport() {
+const dom = [...document.querySelectorAll("[data-control]")].filter(e => getComputedStyle(e).display !== "none")
+.map(e => { const r = e.getBoundingClientRect(); return { id: e.id, x: r.left, y: r.top, w: r.width, h: r.height }; });
+const rects = ST.hud.concat(ST.scene === "play" ? dom : []), G = 4, W = Math.ceil(ST.cw / G), H = Math.ceil(ST.ch / G), cells = new Uint8Array(W * H);
+for (const r of rects) for (let y = Math.max(0, Math.floor(r.y / G)); y < Math.min(H, Math.ceil((r.y + r.h) / G)); y++)
+for (let x = Math.max(0, Math.floor(r.x / G)); x < Math.min(W, Math.ceil((r.x + r.w) / G)); x++) cells[y * W + x] = 1;
+let n = 0; for (const c of cells) n += c;
+const round = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === "number" ? Math.round(v * 10) / 10 : v]));
+return { texts: ST.uiTexts.map(round), hud: ST.hud.map(round), dom: dom.map(round), hudCover: W * H ? +(n / (W * H)).toFixed(3) : 0 };
+}
+window.__gs = () => {
+const S = ST.sound, m = S.music;
+return Object.assign({
+scene: ST.scene, framed: ST.framed, small: ST.small, paused: !!document.hidden, ticks: ST.ticks, time: +ST.time.toFixed(3), seq: ST.seq,
+test: ST.TEST_BUILD, switched: ST.switched, version: ST.cfg.v, addons: ST.cfg.addons.slice(),
+buttons: ST.btns.map(q => ({ id: q.id, label: q.label, x: q.x, y: q.y, w: q.w, h: q.h })),
+layout: { w: ST.cw, h: ST.ch, scale: +ST.sc.toFixed(3), buffer: [ST.canvas.width, ST.canvas.height], world: [ST.BW, ST.BH], uiBottom: ST.uiBottom, safe: ST.L },
+sound: { on: S.on, muted: S.muted, ctx: S.ac ? S.ac.state : null, music: m ? { paused: m.paused, muted: m.muted, time: m.currentTime } : null },
+save: { ok: ST.store.ok, data: JSON.parse(JSON.stringify(ST.save.data)) },
+drag: ST.drag.on,
+input: { keys: [...ST.keys], drag: ST.drag.on, dragId: ST.drag.id, clears: ST.inputStats.clears, last: ST.inputStats.last,
+pad: { ok: ST.pad.ok, connected: ST.pad.connected, errors: ST.pad.errors } },
+ui: uiReport(),
+render3d: self.ST3D && ST3D.auto ? ST3D.auto.report() : null,
+tour: ST.G.tour || [],
+startSeed: ST.startSeed == null ? null : ST.startSeed,   // rng state right after the game's start() (seeded runs: must not depend on robot waits)
+}, ST.G.hook ? ST.G.hook() : {});
+};
+ST.run = G => {
+ST.G = G;
+ST.switched = Object.values(ST.sw).some(Boolean);
+if (ST.sw.seed) ST.seed = ST.sw.seed >>> 0;
+if (ST.sw.card) ST.root.classList.add("card");
+Object.assign(ST.sound.SFX, { start: t => { t(523, 523, 0.08, "triangle", 0.05); t(784, 784, 0.12, "triangle", 0.05, 0.08); },
+tap: t => t(660, 640, 0.03, "triangle", 0.03), win: t => [523, 659, 784, 1046].forEach((f, i) => t(f, f, 0.25, "sine", 0.06, i * 0.12)),
+lose: t => t(392, 98, 0.8, "sawtooth", 0.06) }, G.sfx || {});
+ST.save.load(G.saveDefaults || {});
+addEventListener("resize", ST.resize);
+ST.resize();
+if (G.init) G.init();
+try { ST.draw(); } catch (e) { setTimeout(() => { throw e; }); }
+document.getElementById("loading").classList.add("off");
+window.__ready = true;
+requestAnimationFrame(ST.frame);
+};
+
+const COL = { sky: "#1c1030", sky2: "#2c1a4a", bar: "#0a0610", edge: "#f2a444", star: "#ffd94a", star2: "#fff3c0", ground: "#2a1a38" };
+const ROUND = 15, CW = 90, CH = 160;
+let P, t = 0, taps = 0, pop = 0, ox = 0, oy = 0;
+ST.onResize = () => {                            // world = 9:16 column, letterboxed; buffer covers the whole frame
+const S = ST, a = S.cw / S.ch;
+if (a >= CW / CH) { S.BH = CH; S.BW = Math.round(CH * a); } else { S.BW = CW; S.BH = Math.round(CW / a); }
+ox = Math.floor((S.BW - CW) / 2); oy = 0;
+S.buf = S.mk(S.BW, S.BH); S.g = S.buf.getContext("2d"); S.sc = S.cw / S.BW; S.SY = Math.floor(S.BH * S.SAFE);
+};
+ST.drawJoy = () => {};                          // a tap game: no joystick ring
+const firstFrame = { w: innerWidth, h: innerHeight };
+const GAME = {
+title: {
+name: "Tall Tap",
+lines: ["Tap the star as fast as you can!"],
+cardLine: "TAP TO PLAY IN THE POST",
+footer: () => ST.save.data.best ? "BEST: " + ST.save.data.best : "",
+},
+saveDefaults: { best: 0 },
+start() { t = ROUND; taps = 0; pop = 0; P = { x: CW / 2, y: Math.round(ST.SY * 0.62) }; },
+tap(x, y) { const b = ST.toBuf(x, y); return hit(b.x, b.y); },
+key(code) { if (code === "Space" || code === "Enter") return hit(ox + P.x, P.y); return false; },
+update(dt) { pop = Math.max(0, pop - dt * 4); t -= dt; if (t <= 0) { t = 0; ST.end(); } },
+draw(time) {
+const { R, ell, BW, BH, SY } = ST;
+R(0, 0, BW, BH, COL.bar);                                      // letterbox bars (only seen when the frame is not 9:16)
+for (let y = 0; y < BH; y += 8) R(ox, y, CW, 8, y < SY * 0.5 ? COL.sky : COL.sky2);
+for (let i = 0; i < 14; i++) ST.px(ox + (i * 37) % CW, (i * 23) % (SY - 10), (time * 2 + i) % 3 < 1 ? COL.star2 : "#8a7aa8");
+R(ox, SY, CW, BH - SY, COL.ground);                            // below the 70% line: decoration only
+if (ox > 0) { R(ox - 1, 0, 1, BH, COL.edge); R(ox + CW, 0, 1, BH, COL.edge); }
+const s = ST.scene === "title" ? { x: CW / 2, y: Math.round(SY * 0.8) } : P;
+if (!s) return;
+const r = 7 + Math.round(pop * 3) + ((time * 3 | 0) % 2);
+ell(ox + s.x, s.y, r, r, COL.star); ell(ox + s.x, s.y, r - 3, r - 3, COL.star2);
+},
+hud() { ST.text("TAPS " + taps + "   " + Math.ceil(t) + "S", 52, 16, ST.theme.text, ST.fs); },
+over: () => {
+const best = Math.max(ST.save.data.best, taps), rec = taps > ST.save.data.best;
+ST.save.data.best = best; ST.save.write();
+return { win: taps > 0, title: rec ? "NEW BEST!" : "TIME'S UP", lines: ["You tapped " + taps + " times.", "Best: " + best] };
+},
+sfx: { get: tn => tn(988, 1319, 0.06, "sine", 0.05) },
+hook: () => ({ player: P ? { x: P.x, y: P.y } : null, taps: taps || 0, left: t || 0, hp: 1,
+frame: { w: innerWidth, h: innerHeight, aspect: +(innerWidth / Math.max(1, innerHeight)).toFixed(3), tall: innerHeight > innerWidth * 1.2,
+dpr: window.devicePixelRatio || 1, first: firstFrame, letterbox: ox > 0 ? "sides" : ST.BH > CH ? "taller" : "none" } }),
+};
+function hit(bx, by) {                          // tap within the star (generous, at least 44 css px across)
+const rr = Math.max(12, 24 / ST.sc);
+if (Math.hypot(bx - ox - P.x, by - P.y) > rr) return false;
+taps++; pop = 1; ST.sfx("get");
+P.x = 14 + Math.round(ST.rand() * (CW - 28)); P.y = 34 + Math.round(ST.rand() * Math.max(10, ST.SY - 50));
+return true;
+}
+ST.run(GAME);
+</script>
+</body>
+</html>
